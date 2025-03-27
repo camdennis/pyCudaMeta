@@ -1,0 +1,2 @@
+# pyCudaMeta
+Metastring analysis
