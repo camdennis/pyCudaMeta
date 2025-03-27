@@ -23,6 +23,7 @@ PYBIND11_MODULE(libpyCudaMeta, m) {
         .def("updatePsiPosVel", &Model::updatePsiPosVel)
         .def("runSimulation", &Model::runSimulation)
         .def("drive", &Model::drive)
+        .def("checkUnphysicalPsi", &Model::checkUnphysicalPsi)
 
         // Getters
         .def("getStringSize", &Model::getStringSize)

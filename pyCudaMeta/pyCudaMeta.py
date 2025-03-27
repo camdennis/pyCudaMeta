@@ -133,21 +133,22 @@ class model(lpcm.Model):
     def setDeathCut(self, deathCut):
         lpcm.Model.setDeathCut(self, deathCut)
 
+    def checkUnphysicalPsi(self, stepNum = -1):
+        return lpcm.Model.checkUnphysicalPsi(self, stepNum)
+
 if __name__ == "__main__":
     stringSize = 1000
     m = model(stringSize = stringSize)
     m.configure("/home/rdennis/Documents/Code/pyCudaMetaAnalysis/testConfigs.ini")
     psi = np.zeros(stringSize)
     psiVel = np.zeros(stringSize)
+    m.setDeathCut(0.01)
     m.setPsi(psi)
     m.setPsiVel(psiVel)
     startTime = time.time()
     print("start ", time.time() - startTime)
     print(m.runSimulation(0.1, 0.05, 1000))
     print("finish ", time.time() - startTime)
-    plt.plot(m.getPsi())
-#    m.runSimulation(0.1, 0.01, 10)
-    plt.show()
-    print(m.getPsi()[-1])
+    print(m.checkUnphysicalPsi())
 
 

@@ -33,6 +33,7 @@ public:
     std::vector<double> getV() const;  // Return the result matrix
     std::vector<double> getVVel() const;  // Return the result matrix
     std::vector<double> getParameters() const;
+    bool checkUnphysicalPsi(int stepNum);
     void updatePsiForces(int stepNum);
     void updatePsiPosVel(int stepNum);
 

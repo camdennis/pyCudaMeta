@@ -10,6 +10,11 @@ double pi = 3.14159265358979323846264338328;
 // Declaration of pointwiseMultiply function (defined in model.cu)
 extern "C" void updatePsiPosVelCUDA(double* psi, double* psiVel, double* psiForces, double m, double dt, int numPositions);
 extern "C" void updatePsiForcesCUDA(double* psi, double* psiVel, double* psiLengths, double* psiForces, double k1, double g1, double a, double alpha, int numPositions);
+extern "C" bool checkUnphysicalPsiCUDA(double* psi, double D, double s, int stepNum);
+
+//extern "C" void updatePhiPosVelCUDA(double* psi, double* psiVel, double* psiForces, double m, double dt, int numPositions);
+//extern "C" void updatePhiForcesCUDA(double* psi, double* psiVel, double* psiLengths, double* psiForces, double k1, double g1, double a, double alpha, int numPositions);
+//extern "C" bool checkUnphysicalPhiCUDA(double* psi, double D, double s, int stepNum);
 
 // Constructor
 Model::Model(int size) : stringSize(size) {
@@ -211,6 +216,16 @@ bool Model::checkDeathCut() {
     return false;
 }
 
+bool Model::checkUnphysicalPsi(int stepNum) {
+    if (stepNum == -1) {
+        stepNum = stringSize;
+    }
+    else {
+        stepNum = std::min(stringSize, stepNum);
+    }
+    return checkUnphysicalPsiCUDA(psi, D, s, stepNum);
+}
+
 int Model::runSimulation(double amplitude, double omega, double T) {
     int numSteps = T / dt;
     for (int i = 0; i < numSteps; i++) {
@@ -221,6 +236,9 @@ int Model::runSimulation(double amplitude, double omega, double T) {
             if (checkDeathCut()) {
                 return dt * i;
             }
+        }
+        if (checkUnphysicalPsi(i + 1)) {
+            return dt * i;
         }
     }
     return numSteps * dt;

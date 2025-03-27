@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <float.h>
+#include <vector>
 
 static const int blockSize = 256;
 
@@ -46,4 +47,49 @@ extern "C" void updatePsiForcesCUDA(double* psi, double* psiVel, double* psiLeng
     cudaDeviceSynchronize();
     updatePsiForcesKernel<<<gridSize, blockSize>>>(psi, psiVel, psiLengths, psiForces, k1, g1, alpha, numPositions);
     cudaDeviceSynchronize();
+}
+
+__global__ void checkUnphysicalPsiKernel(const double* psi, bool* result, double D, double s, int stepNum) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Shared memory for reduction within a block
+    __shared__ bool blockBool;
+    if (threadIdx.x == 0) blockBool = false;
+    __syncthreads();
+
+    // Check condition
+    if (idx < stepNum - 1) {
+        double psiDiff = psi[idx] - psi[idx + 1];
+        if (psiDiff > D || psiDiff < -2 * s) {
+            atomicOr((int*)&blockBool, 1);  // Ensure updates are seen by all threads
+        }
+    }
+    __syncthreads();
+
+    // If any thread in the block found an issue, set the block result
+    if (threadIdx.x == 0) {
+        result[blockIdx.x] = blockBool;
+    }
+}
+
+extern "C" bool checkUnphysicalPsiCUDA(double* psi, double D, double s, int stepNum) {
+    int gridSize = (stepNum + blockSize - 1) / blockSize;
+    bool* d_result;
+    cudaMalloc(&d_result, gridSize * sizeof(bool));
+    cudaMemset(d_result, 0, gridSize * sizeof(bool)); // Initialize to false
+
+    // Launch kernel
+    checkUnphysicalPsiKernel<<<gridSize, blockSize>>>(psi, d_result, D, s, stepNum);
+    cudaDeviceSynchronize();
+
+    // Copy result back to host
+    std::vector<char> hostResults(gridSize);
+    cudaMemcpy(hostResults.data(), d_result, gridSize * sizeof(bool), cudaMemcpyDeviceToHost);
+    cudaFree(d_result);
+
+    // If any block found an issue, return true
+    for (bool found : hostResults) {
+        if (found) return true;
+    }
+    return false;
 }
