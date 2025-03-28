@@ -18,8 +18,7 @@ import time
 
 class model(lpcm.Model):
     def __init__(self, 
-                 stringSize = 1e6,
-                 m1 = 0.02,
+                 stringSize = 1e6
     ):
         lpcm.Model.__init__(self, stringSize)
     
@@ -147,8 +146,10 @@ if __name__ == "__main__":
     m.setPsiVel(psiVel)
     startTime = time.time()
     print("start ", time.time() - startTime)
-    print(m.runSimulation(0.1, 0.05, 1000))
+    print(m.runSimulation(0.1, 1.377, 1000))
     print("finish ", time.time() - startTime)
     print(m.checkUnphysicalPsi())
+    plt.plot(m.getPsi())
+    plt.show()
 
 

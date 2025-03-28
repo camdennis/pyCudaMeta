@@ -11,10 +11,12 @@ double pi = 3.14159265358979323846264338328;
 extern "C" void updatePsiPosVelCUDA(double* psi, double* psiVel, double* psiForces, double m, double dt, int numPositions);
 extern "C" void updatePsiForcesCUDA(double* psi, double* psiVel, double* psiLengths, double* psiForces, double k1, double g1, double a, double alpha, int numPositions);
 extern "C" bool checkUnphysicalPsiCUDA(double* psi, double D, double s, int stepNum);
-
-//extern "C" void updatePhiPosVelCUDA(double* psi, double* psiVel, double* psiForces, double m, double dt, int numPositions);
-//extern "C" void updatePhiForcesCUDA(double* psi, double* psiVel, double* psiLengths, double* psiForces, double k1, double g1, double a, double alpha, int numPositions);
-//extern "C" bool checkUnphysicalPhiCUDA(double* psi, double D, double s, int stepNum);
+extern "C" void updatePhiPosVelCUDA(double* phi, double* phiVel, double* phiForces, double m, double dt, int numPositions);
+extern "C" void updatePhiForcesCUDA(double* psi, double* phi, double* psiVel, double* phiVel, double* psiForces, double* phiForces, double k2, double g2, int numPositions);
+extern "C" bool checkUnphysicalPhiCUDA(double* psi, double* phi, double R, double r, int stepNum);
+extern "C" void updateVPosVelCUDA(double* psi, double* psiVel, double* v, double* vVel, double a, double D, double L, double s, int numPositions);
+extern "C" void updateThetaPosVelCUDA(double* theta, double* thetaVel, double* thetaForces, double m3, double dt, int numPositions);
+extern "C" void updateThetaForcesCUDA(double* v, double* vVel, double* theta, double* thetaVel, double* thetaForces, double* psiForces, double k3, double g3, double D, double L, int numPositions);
 
 // Constructor
 Model::Model(int size) : stringSize(size) {
@@ -196,6 +198,65 @@ void Model::updatePsiPosVel(int stepNum) {
     updatePsiPosVelCUDA(psi, psiVel, psiForces, m1, dt, stepNum);
 }
 
+bool Model::checkUnphysicalPsi(int stepNum) {
+    if (stepNum == -1) {
+        stepNum = stringSize;
+    }
+    else {
+        stepNum = std::min(stringSize, stepNum);
+    }
+    return checkUnphysicalPsiCUDA(psi, D, s, stepNum);
+}
+
+void Model::updatePhiForces(int stepNum) {
+//    cudaMemset(psiForces, 0.0, stringSize * sizeof(double));
+    if (stepNum == -1) {
+        stepNum = stringSize;
+    }
+    else {
+        stepNum = std::min(stringSize, stepNum);
+    }
+    updatePhiForcesCUDA(psi, phi, psiVel, phiVel, psiForces, phiForces, k2, g2, stepNum);
+}
+
+void Model::updatePhiPosVel(int stepNum) {
+    if (stepNum == -1) {
+        stepNum = stringSize;
+    }
+    else {
+        stepNum = std::min(stringSize, stepNum);
+    }
+    updatePhiPosVelCUDA(phi, phiVel, phiForces, m2, dt, stepNum);
+}
+
+void Model::updateVPosVel(int stepNum) {
+    if (stepNum == -1) {
+        stepNum = stringSize;
+    }
+    else {
+        stepNum = std::min(stringSize, stepNum);
+    }
+    updateVPosVelCUDA(psi, psiVel, v, vVel, a, D, L, s, stepNum);
+}
+
+void Model:: updateThetaForces(int stepNum) {
+    updateThetaForcesCUDA(v, vVel, theta, thetaVel, thetaForces, psiForces, k3, g3, D, L, stepNum);
+}
+
+void Model::updateThetaPosVel(int stepNum) {
+    updateThetaPosVelCUDA(theta, thetaVel, thetaForces, m3, dt, stepNum);
+}
+
+bool Model::checkUnphysicalPhi(int stepNum) {
+    if (stepNum == -1) {
+        stepNum = stringSize;
+    }
+    else {
+        stepNum = std::min(stringSize, stepNum);
+    }
+    return checkUnphysicalPhiCUDA(psi, phi, R, r, stepNum);
+}
+
 void Model::drive(double amplitude, double omega, double t) {
     double arg = (omega * t);
     int overshoot = arg / (2 * pi);
@@ -216,28 +277,23 @@ bool Model::checkDeathCut() {
     return false;
 }
 
-bool Model::checkUnphysicalPsi(int stepNum) {
-    if (stepNum == -1) {
-        stepNum = stringSize;
-    }
-    else {
-        stepNum = std::min(stringSize, stepNum);
-    }
-    return checkUnphysicalPsiCUDA(psi, D, s, stepNum);
-}
-
 int Model::runSimulation(double amplitude, double omega, double T) {
     int numSteps = T / dt;
     for (int i = 0; i < numSteps; i++) {
         updatePsiForces(i + 1);
+        updatePhiForces(i + 1);
+        updateThetaForces(i + 1);
         updatePsiPosVel(i + 1);
+        updatePhiPosVel(i + 1);
+        updateVPosVel(i + 1);
+        updateThetaPosVel(i + 1);
         drive(amplitude, omega, i * dt);
         if (i > stringSize) {
             if (checkDeathCut()) {
                 return dt * i;
             }
         }
-        if (checkUnphysicalPsi(i + 1)) {
+        if (checkUnphysicalPsi(i + 1) || checkUnphysicalPhi(i + 1)) {
             return dt * i;
         }
     }

@@ -37,6 +37,14 @@ public:
     void updatePsiForces(int stepNum);
     void updatePsiPosVel(int stepNum);
 
+    bool checkUnphysicalPhi(int stepNum);
+    void updatePhiForces(int stepNum);
+    void updatePhiPosVel(int stepNum);
+    void updateVPosVel(int stepNum);
+
+    void updateThetaForces(int stepNum);
+    void updateThetaPosVel(int stepNum);
+
 private:
     int stringSize;
     double deathCut = 0.0;
